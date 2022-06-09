@@ -1,36 +1,37 @@
-#![allow(unused_imports)]
+// #![allow(unused_imports)]
 #![allow(clippy::single_component_path_imports)]
 //#![feature(backtrace)]
 
+// use std::borrow::Borrow;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::{Condvar, Mutex};
-use std::{cell::RefCell, env, sync::atomic::*, sync::Arc, thread, time::*};
+use std::{cell::RefCell, sync::atomic::*, sync::Arc, thread, time::*};
 
 use anyhow::bail;
 
 use embedded_svc::mqtt::client::utils::ConnState;
-use esp_idf_svc::ws::client;
+// use esp_idf_svc::ws::client;
 use log::*;
 
-use url;
+// use url;
 mod solax_x1_air;
 use solax_x1_air::*;
 
-use smol;
+// use smol;
 
-use embedded_hal::adc::OneShot;
-use embedded_hal::blocking::delay::DelayMs;
-use embedded_hal::digital::v2::OutputPin;
+// use embedded_hal::adc::OneShot;
+// use embedded_hal::blocking::delay::DelayMs;
+// use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::prelude::*;
 
-use embedded_svc::eth;
-use embedded_svc::eth::{Eth, TransitionalState};
+// use embedded_svc::eth;
+// use embedded_svc::eth::{Eth, TransitionalState};
 use embedded_svc::httpd::registry::*;
 use embedded_svc::httpd::*;
-use embedded_svc::io;
+// use embedded_svc::io;
 use embedded_svc::ipv4;
 use embedded_svc::mqtt::client::{Client, Connection, MessageImpl, Publish, QoS};
 use embedded_svc::ping::Ping;
@@ -39,9 +40,9 @@ use embedded_svc::timer::TimerService;
 use embedded_svc::timer::*;
 use embedded_svc::wifi::*;
 
-use esp_idf_svc::eth::*;
+// use esp_idf_svc::eth::*;
 use esp_idf_svc::eventloop::*;
-use esp_idf_svc::eventloop::*;
+// use esp_idf_svc::eventloop::*;
 use esp_idf_svc::httpd as idf;
 use esp_idf_svc::httpd::ServerRegistry;
 use esp_idf_svc::mqtt::client::*;
@@ -54,27 +55,27 @@ use esp_idf_svc::systime::EspSystemTime;
 use esp_idf_svc::timer::*;
 use esp_idf_svc::wifi::*;
 
-use esp_idf_hal::adc;
-use esp_idf_hal::delay;
-use esp_idf_hal::gpio;
-use esp_idf_hal::i2c;
+// use esp_idf_hal::adc;
+// use esp_idf_hal::delay;
+// use esp_idf_hal::gpio;
+// use esp_idf_hal::i2c;
 use esp_idf_hal::prelude::*;
-use esp_idf_hal::spi;
-use esp_idf_hal::{peripherals::Peripherals, units::FromValueType};
+// use esp_idf_hal::spi;
+use esp_idf_hal::peripherals::Peripherals;
 
+use esp_idf_sys::EspError;
 use esp_idf_sys::{self, c_types};
-use esp_idf_sys::{esp, EspError};
 
-use display_interface_spi::SPIInterfaceNoCS;
+// use display_interface_spi::SPIInterfaceNoCS;
 
-use embedded_graphics::mono_font::{ascii::FONT_10X20, MonoTextStyle};
-use embedded_graphics::pixelcolor::*;
-use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::*;
-use embedded_graphics::text::*;
+// use embedded_graphics::mono_font::{ascii::FONT_10X20, MonoTextStyle};
+// use embedded_graphics::pixelcolor::*;
+// use embedded_graphics::prelude::*;
+// use embedded_graphics::primitives::*;
+// use embedded_graphics::text::*;
 
 use ssd1306;
-use ssd1306::mode::DisplayConfig;
+// use ssd1306::mode::DisplayConfig;
 extern crate dotenv;
 use dotenv::dotenv;
 
@@ -182,10 +183,10 @@ fn main() -> Result<()> {
         thread::sleep(Duration::from_secs(1));
     }
 
-    for s in 0..3 {
-        info!("Shutting down in {} secs", 3 - s);
-        thread::sleep(Duration::from_secs(1));
-    }
+    // for s in 0..3 {
+    //     info!("Shutting down in {} secs", 3 - s);
+    //     thread::sleep(Duration::from_secs(1));
+    // }
 
     // drop(httpd);
     // info!("Httpd stopped");
@@ -240,10 +241,50 @@ fn poll_inverter(
                     {
                         panic!("MQTT Watts failed")
                     }
-                    info!("X1 {}W", message);
+                    info!("X1 power {}W", message);
+
+                    let message = &inverter.data.livedata.temperature;
+                    if client
+                        .publish(
+                            "X1/temperature",
+                            QoS::AtMostOnce,
+                            true,
+                            format!("{}", message).as_bytes(),
+                        )
+                        .is_err()
+                    {
+                        panic!("MQTT temperature failed")
+                    }
+                    info!("X1 temp {}oC", message);
+
+                    let message = &(inverter.data.livedata.energy_today as f32 * 0.1);
+                    //&(inverter.data.livedata.energy_today as f32 * 0.1).to_string()
+                    if client
+                        .publish(
+                            "X1/energy_today",
+                            QoS::AtMostOnce,
+                            true,
+                            format!("{}", message).as_bytes(),
+                        )
+                        .is_err()
+                    {
+                        panic!("MQTT energy_today failed")
+                    }
+                    info!("X1 energy {}kWh today", message);
                 } else {
                     error!("Inverter is not Ok")
                 }
+                // eventloop
+                //     .post(
+                //         &EventLoopMessage::new(format!(
+                //             "{}W {}oC {}Wh * 0.1",
+                //             inverter.data.livedata.active_power,
+                //             inverter.data.livedata.temperature,
+                //             inverter.data.livedata.energy_today
+                //         )),
+                //         None,
+                //     )
+                //     .unwrap();
             }
         }
     })?;
@@ -347,31 +388,31 @@ fn test_fs() -> Result<()> {
     Ok(())
 }
 
-fn test_tcp() -> Result<()> {
-    info!("About to open a TCP connection to 1.1.1.1 port 80");
+// fn test_tcp() -> Result<()> {
+//     info!("About to open a TCP connection to 1.1.1.1 port 80");
 
-    let mut stream = TcpStream::connect("one.one.one.one:80")?;
+//     let mut stream = TcpStream::connect("one.one.one.one:80")?;
 
-    let err = stream.try_clone();
-    if let Err(err) = err {
-        info!(
-            "Duplication of file descriptors does not work (yet) on the ESP-IDF, as expected: {}",
-            err
-        );
-    }
+//     let err = stream.try_clone();
+//     if let Err(err) = err {
+//         info!(
+//             "Duplication of file descriptors does not work (yet) on the ESP-IDF, as expected: {}",
+//             err
+//         );
+//     }
 
-    stream.write_all("GET / HTTP/1.0\n\n".as_bytes())?;
+//     stream.write_all("GET / HTTP/1.0\n\n".as_bytes())?;
 
-    let mut result = Vec::new();
+//     let mut result = Vec::new();
 
-    stream.read_to_end(&mut result)?;
+//     stream.read_to_end(&mut result)?;
 
-    info!(
-        "1.1.1.1 returned:\n=================\n{}\n=================\nSince it returned something, all is OK",
-        std::str::from_utf8(&result)?);
+//     info!(
+//         "1.1.1.1 returned:\n=================\n{}\n=================\nSince it returned something, all is OK",
+//         std::str::from_utf8(&result)?);
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 fn test_tcp_bind() -> Result<()> {
     fn test_tcp_bind_accept() -> Result<()> {
@@ -422,43 +463,43 @@ fn test_tcp_bind() -> Result<()> {
     Ok(())
 }
 
-fn test_timer(
-    mut eventloop: EspBackgroundEventLoop,
-    mut client: EspMqttClient<ConnState<MessageImpl, EspError>>,
-) -> Result<EspTimer> {
-    use embedded_svc::event_bus::Postbox;
+// fn test_timer(
+//     mut eventloop: EspBackgroundEventLoop,
+//     mut client: EspMqttClient<ConnState<MessageImpl, EspError>>,
+// ) -> Result<EspTimer> {
+//     use embedded_svc::event_bus::Postbox;
 
-    info!("About to schedule a one-shot timer for after 2 seconds");
-    let mut once_timer = EspTimerService::new()?.timer(|| {
-        info!("One-shot timer triggered");
-    })?;
+//     info!("About to schedule a one-shot timer for after 2 seconds");
+//     let mut once_timer = EspTimerService::new()?.timer(|| {
+//         info!("One-shot timer triggered");
+//     })?;
 
-    once_timer.after(Duration::from_secs(2))?;
+//     once_timer.after(Duration::from_secs(2))?;
 
-    thread::sleep(Duration::from_secs(3));
+//     thread::sleep(Duration::from_secs(3));
 
-    info!("About to schedule a periodic timer every five seconds");
-    let mut periodic_timer = EspTimerService::new()?.timer(move || {
-        info!("Tick from periodic timer");
+//     info!("About to schedule a periodic timer every five seconds");
+//     let mut periodic_timer = EspTimerService::new()?.timer(move || {
+//         info!("Tick from periodic timer");
 
-        let now = EspSystemTime {}.now();
+//         let now = EspSystemTime {}.now();
 
-        eventloop.post(&EventLoopMessage::new(now), None).unwrap();
+//         eventloop.post(&EventLoopMessage::new(now), None).unwrap();
 
-        client
-            .publish(
-                "rust-esp32-std-demo",
-                QoS::AtMostOnce,
-                false,
-                format!("Now is {:?}", now).as_bytes(),
-            )
-            .unwrap();
-    })?;
+//         client
+//             .publish(
+//                 "rust-esp32-std-demo",
+//                 QoS::AtMostOnce,
+//                 false,
+//                 format!("Now is {:?}", now).as_bytes(),
+//             )
+//             .unwrap();
+//     })?;
 
-    periodic_timer.every(Duration::from_secs(5))?;
+//     periodic_timer.every(Duration::from_secs(5))?;
 
-    Ok(periodic_timer)
-}
+//     Ok(periodic_timer)
+// }
 
 #[derive(Copy, Clone, Debug)]
 struct EventLoopMessage(Duration);
@@ -732,33 +773,6 @@ fn wifi(
     }
 
     Ok(wifi)
-}
-
-#[cfg(any(feature = "qemu", feature = "w5500", feature = "ip101"))]
-fn eth_configure<HW>(mut eth: Box<EspEth<HW>>) -> Result<Box<EspEth<HW>>> {
-    info!("Eth created");
-
-    eth.set_configuration(&eth::Configuration::Client(Default::default()))?;
-
-    info!("Eth configuration set, about to get status");
-
-    eth.wait_status_with_timeout(Duration::from_secs(10), |status| !status.is_transitional())
-        .map_err(|e| anyhow::anyhow!("Unexpected Eth status: {:?}", e))?;
-
-    let status = eth.get_status();
-
-    if let eth::Status::Started(eth::ConnectionStatus::Connected(eth::IpStatus::Done(Some(
-        ip_settings,
-    )))) = status
-    {
-        info!("Eth connected");
-
-        ping(&ip_settings)?;
-    } else {
-        bail!("Unexpected Eth status: {:?}", status);
-    }
-
-    Ok(eth)
 }
 
 fn ping(ip_settings: &ipv4::ClientSettings) -> Result<()> {
